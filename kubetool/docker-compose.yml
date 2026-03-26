@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Python FastAPI Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sreagent-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - KUBECONFIG=/root/.kube/config
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=info
+    volumes:
+      - ~/.kube/config:/root/.kube/config:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sreagent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Next.js React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sreagent-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:3001
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sreagent
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+networks:
+  sreagent:
+    driver: bridge
+
+# Usage:
+# docker-compose up -d          # Start all services
+# docker-compose logs -f        # View logs
+# docker-compose down           # Stop all services
+# docker-compose ps             # View status
+#
+# Access:
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:3001
+# API Docs: http://localhost:3001/docs

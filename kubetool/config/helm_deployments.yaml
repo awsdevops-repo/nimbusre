@@ -1,0 +1,351 @@
+# Helm Deployment Examples and Values Files
+
+## NGINX Ingress Controller
+
+### Installation Values
+```yaml
+# nginx-ingress-values.yaml
+replicaCount: 2
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 80
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+```
+
+### Install Command
+```bash
+helm install nginx-ingress nginx-community/nginx-ingress \
+  --namespace ingress-nginx \
+  --create-namespace \
+  -f nginx-ingress-values.yaml
+```
+
+---
+
+## Prometheus + Grafana Stack
+
+### Prometheus Values
+```yaml
+# prometheus-values.yaml
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: 1000m
+        memory: 4Gi
+
+grafana:
+  enabled: true
+  replicas: 2
+  adminPassword: "changeme"
+  
+  persistence:
+    enabled: true
+    size: 10Gi
+```
+
+### Install Prometheus Stack
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  -f prometheus-values.yaml
+```
+
+---
+
+## PostgreSQL Database
+
+### PostgreSQL Values
+```yaml
+# postgres-values.yaml
+global:
+  postgresql:
+    username: postgres
+    password: "secure-password-here"
+    database: myapp
+
+primary:
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClassName: standard
+
+replica:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+```
+
+### Install PostgreSQL
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+helm install postgres bitnami/postgresql \
+  --namespace databases \
+  --create-namespace \
+  -f postgres-values.yaml
+```
+
+---
+
+## Redis Cache
+
+### Redis Values
+```yaml
+# redis-values.yaml
+architecture: replication
+
+auth:
+  enabled: true
+  password: "redis-secure-password"
+
+master:
+  persistence:
+    enabled: true
+    size: 10Gi
+
+replica:
+  replicaCount: 2
+  persistence:
+    enabled: true
+    size: 10Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+metrics:
+  enabled: true
+```
+
+### Install Redis
+```bash
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo update
+
+helm install redis bitnami/redis \
+  --namespace cache \
+  --create-namespace \
+  -f redis-values.yaml
+```
+
+---
+
+## Cert-Manager (Let's Encrypt Integration)
+
+### Cert-Manager Values
+```yaml
+# cert-manager-values.yaml
+replicaCount: 3
+
+installCRDs: true
+
+global:
+  leaderElection:
+    namespace: cert-manager
+
+serviceAccount:
+  create: true
+  name: cert-manager
+
+podSecurityPolicy:
+  enabled: false
+
+securityContext:
+  runAsNonRoot: true
+  fsGroup: 1000
+```
+
+### Install Cert-Manager
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  -f cert-manager-values.yaml
+```
+
+---
+
+## ArgoCD (GitOps Continuous Delivery)
+
+### ArgoCD Values
+```yaml
+# argocd-values.yaml
+replicaCount: 3
+
+server:
+  insecure: false
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - argocd.example.com
+    tls:
+      - secretName: argocd-tls
+        hosts:
+          - argocd.example.com
+
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+redis:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+repoServer:
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+```
+
+### Install ArgoCD
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  --create-namespace \
+  -f argocd-values.yaml
+```
+
+---
+
+## Common Operations
+
+### List All Releases
+```bash
+helm list -A
+```
+
+### Check Release Status
+```bash
+helm status <release-name> -n <namespace>
+```
+
+### Get Release Values
+```bash
+helm get values <release-name> -n <namespace>
+```
+
+### Upgrade a Release
+```bash
+helm upgrade <release-name> <chart> \
+  --namespace <namespace> \
+  -f new-values.yaml
+```
+
+### Rollback a Release
+```bash
+helm rollback <release-name> <revision> -n <namespace>
+```
+
+### Uninstall a Release
+```bash
+helm uninstall <release-name> -n <namespace>
+```
+
+---
+
+## Repository Management
+
+### Add Helm Repositories
+```bash
+# Official charts
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add jetstack https://charts.jetstack.io
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo add nginx-stable https://helm.nginx.com/stable
+
+# Update local cache
+helm repo update
+```
+
+### Search for Charts
+```bash
+helm search repo nginx
+helm search repo prometheus
+helm search repo postgres
+```
+
+---
+
+## Debugging
+
+### View Pod Logs
+```bash
+kubectl logs -f deployment/<release-name> -n <namespace>
+```
+
+### Check Helm Events
+```bash
+helm get notes <release-name> -n <namespace>
+```
+
+### Test Chart Before Installing
+```bash
+helm template <release-name> <chart> -f values.yaml
+helm lint <chart-path>
+```

@@ -1,0 +1,95 @@
+name: Terraform Deploy (Manual)
+
+run-name: >
+  Terraform ${{  inputs.action  }} ⚙️🌍
+   📂  dir=${{  inputs.tf_working_dir }}
+   📍  region=${{  inputs.aws_region }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region to use"
+        required: true
+        default: "eu-west-1"
+        type: choice
+        options:
+          - eu-west-1
+          - eu-west-2
+      action:
+        description: "Terraform action"
+        required: true
+        default: "plan"
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      tf_working_dir:
+        description: "Terraform working directory"
+        required: true
+        default: "./infra"
+        type: string
+      tf_version:
+        description: "Terraform version"
+        required: true
+        default: "1.7.5"
+        type: string
+
+permissions:
+  id-token: write   # REQUIRED for OIDC assume-role
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: prod  # optional; remove or change (recommended for apply/destroy)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+  
+
+      - name: Configure AWS credentials (Assume Role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::658454555656:role/terraform-deploy
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Copy to s3
+        if:  ${{  inputs.action ==  'apply'  && inputs.tf_working_dir  ==  './infra/ec2-ubuntu-tool-server' }}
+        run: |
+           pwd ; ls -la ;
+           tar -cvzf kube_tools.tar  ./kubetool
+           aws s3 cp kube_tools.tar s3://s3-odie-dev-euwe1-tfstatefile/scripts/kube_tools.tar  
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.tf_version }}
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.tf_working_dir }}
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        working-directory: ${{ inputs.tf_working_dir }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: ${{ inputs.action == 'plan' }}
+        working-directory: ${{ inputs.tf_working_dir }}
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        if: ${{ inputs.action == 'apply' }}
+        working-directory: ${{ inputs.tf_working_dir }}
+        run: terraform apply -input=false -auto-approve
+
+      - name: Terraform Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ inputs.tf_working_dir }}
+        run: terraform destroy -input=false -auto-approve
