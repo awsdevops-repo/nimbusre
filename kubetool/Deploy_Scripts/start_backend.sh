@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Navigate to the kubetool directory
-cd /Users/amar.mani/source/ollama/kube-factory/kubetool
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
 
 # Activate virtual environment (if exists)
 if [ -d "venv" ]; then

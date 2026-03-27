@@ -2,20 +2,14 @@
 FastAPI backend to expose SREAgent LangGraph workflow via HTTP API.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-import json
-import sys
-import os
 import asyncio
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-
-from src.workflows.basic import run_sre_session
-from src.workflows.advanced import run_advanced_workflow
+from ..workflows.basic import run_sre_session
+from ..workflows.advanced import run_advanced_workflow
 
 app = FastAPI(
     title="SREAgent API",
@@ -172,14 +166,21 @@ async def query_sre_agent(request: QueryRequest):
         status = result.get("status", "completed")
         findings = result.get("findings", {})
         remediation_plan = result.get("remediation_plan")
-        executed_actions = [
-            {
-                "tool": action.get("tool_name"),
-                "action": action.get("action"),
-                "status": action.get("status"),
-            }
-            for action in result.get("executed_actions", [])
-        ]
+        executed_actions = []
+        for action in result.get("executed_actions", []):
+            if isinstance(action, dict):
+                executed_actions.append({
+                    "tool": action.get("tool_name"),
+                    "action": action.get("action"),
+                    "status": action.get("status"),
+                })
+            else:
+                # RemediationAction dataclass
+                executed_actions.append({
+                    "tool": getattr(action, "tool_name", None),
+                    "action": getattr(action, "action", None),
+                    "status": getattr(action, "status", None),
+                })
 
         return QueryResponse(
             status=status,
@@ -190,7 +191,7 @@ async def query_sre_agent(request: QueryRequest):
             executed_actions=executed_actions,
         )
 
-    except TimeoutError:
+    except asyncio.TimeoutError:
         return QueryResponse(
             status="failed",
             severity="high",

@@ -10,6 +10,7 @@ from .sre import (
 from .infrastructure import (
     ansible_tool,
     helm_tool,
+    kubectl_tool,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "cost_analyzer_tool",
     "ansible_tool",
     "helm_tool",
+    "kubectl_tool",
 ]

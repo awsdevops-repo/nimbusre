@@ -1,9 +1,9 @@
 import subprocess
-import json
-import os
+import shlex
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
+from src.tools.kubeconfig_utils import resolve_kubeconfig_path
 
 
 ALLOWED_LOG_OPERATIONS = {
@@ -94,25 +94,10 @@ def logs_tool(
     if search_pattern and any(keyword in search_pattern for keyword in DENY_KEYWORDS):
         return "Destructive keywords not allowed in search patterns"
 
-    # Always use workspace kubeconfig - ignore LLM provided paths
-    workspace_config = "/Users/amar.mani/source/ollama/kubetool/docker-desktop-config.yaml"
-    if os.path.exists(workspace_config):
-        kubeconfig = workspace_config
-    else:
-        # Fallback to default locations
-        possible_configs = [
-            os.path.expanduser("~/.kube/config"),
-            "/etc/kubernetes/admin.conf"
-        ]
-        
-        kubeconfig = None
-        for config_path in possible_configs:
-            if os.path.exists(config_path):
-                kubeconfig = config_path
-                break
-        
-        if not kubeconfig:
-            return "No valid kubeconfig found. Please ensure kubectl is configured."
+    # Always use workspace kubeconfig first; ignore user-provided paths for safety
+    kubeconfig = resolve_kubeconfig_path(user_path=kubeconfig, ignore_user_path=True)
+    if not kubeconfig:
+        return "No valid kubeconfig found. Please ensure kubectl is configured."
 
     # Build kubectl command
     cmd = _build_kubectl_cmd(
@@ -212,20 +197,27 @@ def _build_kubectl_cmd(
     elif operation == "search_logs":
         if not pod_name or not search_pattern:
             return None
-        base_cmd.append(pod_name)
-        if container:
-            base_cmd.extend(["-c", container])
-        # Use tail then grep
-        return base_cmd + ["--tail", str(lines), "|", "grep", search_pattern]
+        kubeconfig_flag = f"--kubeconfig {shlex.quote(kubeconfig)} " if kubeconfig else ""
+        container_flag = f"-c {shlex.quote(container)} " if container else ""
+        return [
+            "bash", "-c",
+            f"kubectl logs {kubeconfig_flag}-n {shlex.quote(namespace)} "
+            f"{shlex.quote(pod_name)} {container_flag}--tail={lines} | "
+            f"grep -E -- {shlex.quote(search_pattern)}"
+        ]
 
     elif operation == "log_stats":
         if not pod_name:
             return None
-        # Get log size info
+        kubeconfig_flag = f"--kubeconfig {shlex.quote(kubeconfig)} " if kubeconfig else ""
+        container_flag = f"-c {shlex.quote(container)} " if container else ""
+        # Get line and byte counts from recent log tail
         return [
             "bash", "-c",
-            f'kubectl logs -n {namespace} {pod_name} --tail=100 | wc -l && '
-            f'kubectl logs -n {namespace} {pod_name} --tail=100 | du -sh'
+            f"kubectl logs {kubeconfig_flag}-n {shlex.quote(namespace)} {shlex.quote(pod_name)} "
+            f"{container_flag}--tail={lines} | wc -l && "
+            f"kubectl logs {kubeconfig_flag}-n {shlex.quote(namespace)} {shlex.quote(pod_name)} "
+            f"{container_flag}--tail={lines} | wc -c"
         ]
 
     elif operation == "failing_pods_logs":

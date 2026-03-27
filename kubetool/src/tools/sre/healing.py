@@ -187,7 +187,7 @@ def _build_healing_command(
         return base_cmd + [
             "get", "pod", pod_name,
             "-n", namespace,
-            "-o", "jsonpath={.status.conditions[*].{type:.type,status:.status,message:.message}}"
+            "-o", "jsonpath={range .status.conditions[*]}{.type}={.status} {end}"
         ]
 
     elif action == "create_policy":

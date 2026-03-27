@@ -21,7 +21,7 @@ echo -e "${BLUE}========================================${NC}\n"
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
    echo -e "${RED}This script must be run as root${NC}"
-   echo "Please run: sudo bash install.sh"
+    echo "Please run: sudo bash Deploy_Scripts/install.sh"
    exit 1
 fi
 
@@ -181,9 +181,9 @@ echo "  ✓ Nginx"
 echo "  ✓ Certbot (SSL/TLS)"
 
 echo -e "\n${BLUE}Next Steps:${NC}"
-echo "  1. Run: sudo bash deploy.sh"
-echo "  2. Configure Nginx: sudo bash setup-nginx.sh"
-echo "  3. Set up SSL: sudo bash setup-ssl.sh <your-domain>"
+echo "  1. Run: sudo bash Deploy_Scripts/deploy.sh"
+echo "  2. Configure Nginx: sudo bash Deploy_Scripts/setup-nginx.sh"
+echo "  3. Set up SSL: sudo bash Deploy_Scripts/setup-ssl.sh <your-domain>"
 echo "  4. Access app at: http://localhost or https://your-domain"
 
 echo -e "\n${BLUE}Useful Commands:${NC}"

@@ -1,10 +1,10 @@
 import os
-import tempfile
 import subprocess
 import json
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
+from src.tools.kubeconfig_utils import resolve_kubeconfig_path
 
 
 # Keep this tight. Expand only as needed.
@@ -79,25 +79,10 @@ def helm_tool(
     if namespace in PROTECTED_NAMESPACES and operation in {"install", "upgrade", "uninstall"}:
         return f"Cannot deploy to protected namespace: {namespace}. Use a user namespace."
 
-    # Always use workspace kubeconfig - ignore LLM provided paths
-    workspace_config = "/Users/amar.mani/source/ollama/kubetool/docker-desktop-config.yaml"
-    if os.path.exists(workspace_config):
-        kubeconfig = workspace_config
-    else:
-        # Fallback to default locations
-        possible_configs = [
-            os.path.expanduser("~/.kube/config"),
-            "/etc/kubernetes/admin.conf"
-        ]
-        
-        kubeconfig = None
-        for config_path in possible_configs:
-            if os.path.exists(config_path):
-                kubeconfig = config_path
-                break
-        
-        if not kubeconfig:
-            return "No valid kubeconfig found. Please ensure kubectl is configured."
+    # Always use workspace kubeconfig first; ignore user-provided paths for safety
+    kubeconfig = resolve_kubeconfig_path(user_path=kubeconfig, ignore_user_path=True)
+    if not kubeconfig:
+        return "No valid kubeconfig found. Please ensure kubectl is configured."
 
     # Build command based on operation
     cmd = _build_helm_command(operation, release_name, chart, repo_name, repo_url, namespace, version, values, wait, timeout)

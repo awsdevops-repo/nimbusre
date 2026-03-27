@@ -268,7 +268,7 @@ echo "  View logs: sudo tail -f /var/log/nginx/nimbusre-error.log"
 
 if [ "$DOMAIN" != "localhost" ]; then
     echo -e "\n${BLUE}Next Step - Set up SSL/TLS:${NC}"
-    echo "  Run: sudo bash /opt/nimbusre/setup-ssl.sh $DOMAIN"
+    echo "  Run: sudo bash /opt/nimbusre/Deploy_Scripts/setup-ssl.sh $DOMAIN"
 fi
 
 echo -e "\n${BLUE}Access Application:${NC}"

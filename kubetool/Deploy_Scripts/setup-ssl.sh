@@ -30,7 +30,7 @@ DOMAIN="${1:-localhost}"
 if [ "$DOMAIN" = "localhost" ] || [ -z "$DOMAIN" ]; then
     echo -e "${YELLOW}[!] SSL is only for public domains${NC}"
     echo "    For localhost development, HTTP is fine"
-    echo "    Usage: sudo bash setup-ssl.sh your-domain.com"
+    echo "    Usage: sudo bash Deploy_Scripts/setup-ssl.sh your-domain.com"
     exit 0
 fi
 

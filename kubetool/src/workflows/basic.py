@@ -3,24 +3,23 @@ LangGraph-based SREAgent: Multi-tool orchestration for Kubernetes operations.
 Supports complex multi-step SRE workflows with state management and tool coordination.
 """
 
-from typing import Annotated, TypedDict, Optional, Any
+from typing import Annotated, TypedDict, Optional
 import json
 
-from langchain_ollama import ChatOllama
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
-from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
-
-from src.tools.sre.monitoring import monitoring_tool
-from src.tools.sre.logs import logs_tool
-from src.tools.sre.healing import healing_tool
-from src.tools.sre.cost_analyzer import cost_analyzer_tool
-from src.tools.infrastructure.kubectl import kubectl_tool
-from src.tools.infrastructure.ansible import ansible_tool
-from src.tools.infrastructure.helm import helm_tool
+from .shared import (
+    get_llm_with_tools,
+    monitoring_tool,
+    logs_tool,
+    healing_tool,
+    cost_analyzer_tool,
+    kubectl_tool,
+    ansible_tool,
+    helm_tool,
+)
 
 
 # Define SREAgent state
@@ -34,11 +33,8 @@ class SREState(TypedDict):
     max_tool_calls: int
 
 
-# Initialize LLM with tools
-llm = ChatOllama(model="llama3.1:8b", temperature=0)
-tools = [kubectl_tool, ansible_tool, helm_tool, monitoring_tool, logs_tool, healing_tool, cost_analyzer_tool]
- 
-llm_with_tools = llm.bind_tools(tools)
+# Initialize LLM with shared tool registry
+llm_with_tools = get_llm_with_tools()
 
 
 def should_continue(state: SREState) -> str:

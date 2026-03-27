@@ -1,7 +1,7 @@
 #!/bin/bash
 ################################################################################
 # NimbusRE Agent - Deployment Script (fixed)
-# Run as root: sudo bash deploy.sh
+# Run as root: sudo bash Deploy_Scripts/deploy_app.sh
 ################################################################################
 
 set -euo pipefail
@@ -18,7 +18,7 @@ BACKEND_PORT="3001"
 # Ensure running as root
 if [[ $EUID -ne 0 ]]; then
   echo -e "${RED}This script must be run as root${NC}"
-  echo "Please run: sudo bash deploy.sh"
+  echo "Please run: sudo bash Deploy_Scripts/deploy_app.sh"
   exit 1
 fi
 
@@ -45,7 +45,7 @@ if [[ -d "$(pwd)/frontend" && -d "$(pwd)/src" ]]; then
   echo -e "${GREEN}✓ Application files copied to ${APP_DIR}${NC}"
 else
   echo -e "${RED}✗ Please run this script from project root containing 'frontend' and 'src'${NC}"
-  echo "  cd /path/to/project && sudo bash deploy.sh"
+  echo "  cd /path/to/project && sudo bash Deploy_Scripts/deploy_app.sh"
   exit 1
 fi
 

@@ -8,20 +8,21 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import json
 
-from langchain_ollama import ChatOllama
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
-from langchain_core.tools import tool
+from langchain_core.messages import BaseMessage, HumanMessage, ToolMessage
 
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 
-from src.tools.sre.monitoring import monitoring_tool
-from src.tools.sre.logs import logs_tool
-from src.tools.sre.healing import healing_tool
-from src.tools.sre.cost_analyzer import cost_analyzer_tool
-from src.tools.infrastructure.kubectl import kubectl_tool
-from src.tools.infrastructure.ansible import ansible_tool
-from src.tools.infrastructure.helm import helm_tool
+from .shared import (
+    get_llm_with_tools,
+    monitoring_tool,
+    logs_tool,
+    healing_tool,
+    cost_analyzer_tool,
+    kubectl_tool,
+    ansible_tool,
+    helm_tool,
+)
 
 
 @dataclass
@@ -108,9 +109,7 @@ Your task:
 Do NOT execute healing actions yet. Only plan them.
 Use monitoring_tool and logs_tool to gather data first."""
     
-    llm = ChatOllama(model="llama3.1:8b", temperature=0)
-    tools = [kubectl_tool, ansible_tool, helm_tool, monitoring_tool, logs_tool, healing_tool, cost_analyzer_tool]
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = get_llm_with_tools()
     
     response = llm_with_tools.invoke(
         [{"role": "system", "content": system_prompt}] + 
@@ -161,10 +160,6 @@ def execute_remediation(state: SREWorkflowState) -> SREWorkflowState:
     """Execute planned remediation actions."""
     
     state["status"] = "executing"
-    
-    llm = ChatOllama(model="llama3.1", temperature=0)
-    tools = [kubectl_tool, ansible_tool, helm_tool, monitoring_tool, logs_tool, healing_tool, cost_analyzer_tool]
-    llm_with_tools = llm.bind_tools(tools)
     
     # Helper to clean tool inputs (convert <nil> strings to None)
     def clean_tool_input(tool_input):
@@ -249,9 +244,7 @@ Use monitoring_tool to verify the fix."""
     
     state["messages"].append(HumanMessage(content=verify_prompt))
     
-    llm = ChatOllama(model="llama3.1", temperature=0)
-    tools = [kubectl_tool, ansible_tool, helm_tool, monitoring_tool, logs_tool, healing_tool, cost_analyzer_tool]
-    llm_with_tools = llm.bind_tools(tools)
+    llm_with_tools = get_llm_with_tools()
     
     response = llm_with_tools.invoke(state["messages"])
     state["messages"].append(response)
@@ -330,7 +323,7 @@ def build_advanced_sre_graph():
     return graph.compile()
 
 
-def run_advanced_workflow(query: str):
+def run_advanced_workflow(query: str, max_tools: int = 10):
     """Run advanced SRE workflow with orchestration."""
     graph = build_advanced_sre_graph()
     state = {
@@ -345,7 +338,7 @@ def run_advanced_workflow(query: str):
         "approval_required": False,
         "approved_by": None,
         "tool_calls_count": 0,
-        "max_tool_calls": 10,
+        "max_tool_calls": max_tools,
     }
     print(f"\n🚀 SREAgent Advanced Workflow")
     print(f"📋 Query: {query}")
@@ -369,33 +362,6 @@ def run_advanced_workflow(query: str):
     return result
 
 
-def run_sre_session(initial_query: str, max_tools: int = 5):
-    """Run an interactive SRE session."""
-    agent = build_sre_graph()
-    state = {
-        "messages": [HumanMessage(content=initial_query)],
-        "current_task": None,
-        "findings": {},
-        "remediation_plan": None,
-        "tool_calls_count": 0,
-        "max_tool_calls": max_tools,
-    }
-    print(f"\n🚀 SREAgent - Starting Session")
-    print(f"📋 Query: {initial_query}")
-    print("=" * 80)
-    try:
-        result = agent.invoke(state)
-    except Exception as e:
-        print(f"\n❌ Exception in basic workflow: {e}")
-        return {
-            "status": "failed",
-            "error": f"Exception in basic workflow: {str(e)}",
-            "traceback": getattr(e, "__traceback__", None),
-            "findings": {},
-            "remediation_plan": None,
-        }
-    # ...existing summary print code...
-    return result
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ echo -e "${BLUE}========================================${NC}\n"
 # Must run as root
 if [[ $EUID -ne 0 ]]; then
    echo -e "${RED}This script must be run as root${NC}"
-   echo "Please run: sudo bash install.sh"
+  echo "Please run: sudo bash Deploy_Scripts/install_tools.sh"
    exit 1
 fi
 

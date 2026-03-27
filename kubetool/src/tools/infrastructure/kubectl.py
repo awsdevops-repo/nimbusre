@@ -1,10 +1,14 @@
-import os, tempfile, subprocess
+import os
+import shutil
+import subprocess
+import tempfile
 
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from langchain_core.tools import tool
+from src.tools.kubeconfig_utils import read_workspace_kubeconfig_or_env
  
 # ✅ Keep this tight. Expand only as needed.
 
@@ -32,16 +36,10 @@ def kubectl_tool(verb: str, resource: str, namespace: Optional[str] = None, extr
 
     """
     
-    # Try to read from docker-desktop-config.yaml file first, then fallback to env var
-    kubeconfig_path = os.path.join(os.path.dirname(__file__), "../../../docker-desktop-config.yaml")
-    
-    if os.path.exists(kubeconfig_path):
-        with open(kubeconfig_path, 'r') as f:
-            kubeconfig_text = f.read()
-    else:
-        kubeconfig_text = os.environ.get("KUBECONFIG_TEXT")
-        if not kubeconfig_text:
-            return "Missing docker-desktop-config.yaml file or KUBECONFIG_TEXT env var."
+    # Read workspace kubeconfig content first, then fallback to env var
+    kubeconfig_text = read_workspace_kubeconfig_or_env("KUBECONFIG_TEXT")
+    if not kubeconfig_text:
+        return "Missing docker-desktop-config.yaml file or KUBECONFIG_TEXT env var."
  
     if extra_args is None:
         extra_args = []
@@ -68,8 +66,11 @@ def kubectl_tool(verb: str, resource: str, namespace: Optional[str] = None, extr
  
     try:
 
-        os.environ["PATH"] += ":/usr/bin"
-        cmd = ["/usr/bin/kubectl", verb, resource]
+        kubectl_bin = shutil.which("kubectl")
+        if not kubectl_bin:
+            return "kubectl not found in PATH. Please install kubectl and ensure it is accessible."
+
+        cmd = [kubectl_bin, verb, resource]
 
         if namespace:
 

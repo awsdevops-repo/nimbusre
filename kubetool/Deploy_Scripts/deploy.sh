@@ -27,7 +27,7 @@ BACKEND_PORT="8000"
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
    echo -e "${RED}This script must be run as root${NC}"
-   echo "Please run: sudo bash deploy.sh"
+    echo "Please run: sudo bash Deploy_Scripts/deploy.sh"
    exit 1
 fi
 
@@ -50,7 +50,7 @@ if [ -d "$(pwd)/frontend" ] && [ -d "$(pwd)/src" ]; then
     echo -e "${GREEN}✓ Application files copied${NC}"
 else
     echo -e "${YELLOW}! Please run this script from the kubetool root directory${NC}"
-    echo "  cd /path/to/kubetool && sudo bash deploy.sh"
+    echo "  cd /path/to/kubetool && sudo bash Deploy_Scripts/deploy.sh"
     exit 1
 fi
 
@@ -226,8 +226,8 @@ echo "  Backend API: http://localhost:8000"
 echo "  API Docs: http://localhost:8000/docs"
 
 echo -e "\n${BLUE}Next Steps:${NC}"
-echo "  1. Configure Nginx: sudo bash $APP_DIR/setup-nginx.sh"
-echo "  2. Set up SSL: sudo bash $APP_DIR/setup-ssl.sh <your-domain>"
+echo "  1. Configure Nginx: sudo bash $APP_DIR/Deploy_Scripts/setup-nginx.sh"
+echo "  2. Set up SSL: sudo bash $APP_DIR/Deploy_Scripts/setup-ssl.sh <your-domain>"
 echo "  3. Configure Kubernetes access for $APP_USER user"
 echo "  4. Monitor logs: sudo journalctl -u nimbusre-backend -f"
 
